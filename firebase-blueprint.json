@@ -1,0 +1,262 @@
+{
+  "entities": {
+    "UserProfile": {
+      "title": "UserProfile",
+      "description": "Public/preference profile and academic progress summary for a student.",
+      "type": "object",
+      "properties": {
+        "uid": { "type": "string", "minLength": 1, "maxLength": 128, "pattern": "^[a-zA-Z0-9_\\-]+$" },
+        "displayName": { "type": "string", "minLength": 1, "maxLength": 60 },
+        "academicLevel": { "type": "string", "enum": ["high_school", "undergraduate", "postgraduate", "independent"] },
+        "crestId": { "type": "string", "enum": ["owl", "astrolabe", "folio", "laurel"] },
+        "dailyGoalMinutes": { "type": "number" },
+        "xp": { "type": "number" },
+        "totalStudyMinutes": { "type": "number" },
+        "streakDays": { "type": "number" },
+        "lastStudyDate": { "type": "string", "maxLength": 20 },
+        "activeStudyDays": { "type": "number" },
+        "adhdMode": { "type": "boolean" },
+        "ambientSound": { "type": "string", "enum": ["none", "rain", "hearth", "archive", "binaural"] },
+        "themeVariant": { "type": "string", "enum": ["midnight", "walnut", "slate"] },
+        "notificationsEnabled": { "type": "boolean" },
+        "plan": { "type": "string", "enum": ["free", "premium"] },
+        "unlockedBadges": { "type": "array" },
+        "createdAt": { "type": "string", "format": "date-time" },
+        "updatedAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["uid", "displayName", "academicLevel", "crestId", "dailyGoalMinutes", "xp", "totalStudyMinutes", "streakDays", "lastStudyDate", "activeStudyDays", "adhdMode", "ambientSound", "themeVariant", "notificationsEnabled", "plan", "unlockedBadges", "createdAt", "updatedAt"]
+    },
+    "UserPrivateAccount": {
+      "title": "UserPrivateAccount",
+      "description": "Isolated PII and billing metadata strictly readable/writable by the owning user or server.",
+      "type": "object",
+      "properties": {
+        "uid": { "type": "string", "minLength": 1, "maxLength": 128, "pattern": "^[a-zA-Z0-9_\\-]+$" },
+        "email": { "type": "string", "maxLength": 160 },
+        "subscriptionStatus": { "type": "string", "enum": ["none", "trialing", "active", "canceled"] },
+        "subscriptionPeriod": { "type": "string", "enum": ["none", "monthly", "annual"] },
+        "createdAt": { "type": "string", "format": "date-time" },
+        "updatedAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["uid", "email", "subscriptionStatus", "subscriptionPeriod", "createdAt", "updatedAt"]
+    },
+    "Subject": {
+      "title": "Subject",
+      "description": "Academic subject in Personal Library.",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string", "minLength": 1, "maxLength": 128, "pattern": "^[a-zA-Z0-9_\\-]+$" },
+        "uid": { "type": "string", "minLength": 1, "maxLength": 128, "pattern": "^[a-zA-Z0-9_\\-]+$" },
+        "title": { "type": "string", "minLength": 1, "maxLength": 100 },
+        "code": { "type": "string", "maxLength": 20 },
+        "color": { "type": "string", "minLength": 1, "maxLength": 24 },
+        "targetHours": { "type": "number" },
+        "createdAt": { "type": "string", "format": "date-time" },
+        "updatedAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["id", "uid", "title", "code", "color", "targetHours", "createdAt", "updatedAt"]
+    },
+    "Chapter": {
+      "title": "Chapter",
+      "description": "Chapter within a subject containing completion status, notes, formulas, and difficulty tag.",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string", "minLength": 1, "maxLength": 128, "pattern": "^[a-zA-Z0-9_\\-]+$" },
+        "uid": { "type": "string", "minLength": 1, "maxLength": 128, "pattern": "^[a-zA-Z0-9_\\-]+$" },
+        "subjectId": { "type": "string", "minLength": 1, "maxLength": 128, "pattern": "^[a-zA-Z0-9_\\-]+$" },
+        "title": { "type": "string", "minLength": 1, "maxLength": 140 },
+        "completed": { "type": "boolean" },
+        "isDifficult": { "type": "boolean" },
+        "difficulty": { "type": "string", "enum": ["foundational", "standard", "challenging"] },
+        "notes": { "type": "string", "maxLength": 15000 },
+        "formulas": { "type": "string", "maxLength": 8000 },
+        "order": { "type": "number" },
+        "createdAt": { "type": "string", "format": "date-time" },
+        "updatedAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["id", "uid", "subjectId", "title", "completed", "isDifficult", "difficulty", "notes", "formulas", "order", "createdAt", "updatedAt"]
+    },
+    "FocusSession": {
+      "title": "FocusSession",
+      "description": "Completed Pomodoro or custom study session.",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string", "minLength": 1, "maxLength": 128, "pattern": "^[a-zA-Z0-9_\\-]+$" },
+        "uid": { "type": "string", "minLength": 1, "maxLength": 128, "pattern": "^[a-zA-Z0-9_\\-]+$" },
+        "subjectId": { "type": "string", "maxLength": 128 },
+        "subjectTitle": { "type": "string", "maxLength": 100 },
+        "chapterId": { "type": "string", "maxLength": 128 },
+        "durationMinutes": { "type": "number" },
+        "mode": { "type": "string", "enum": ["pomodoro", "custom", "adhd_sprint", "short_break", "long_break"] },
+        "completedAt": { "type": "string", "minLength": 1, "maxLength": 40 },
+        "dateKey": { "type": "string", "minLength": 8, "maxLength": 16 },
+        "xpEarned": { "type": "number" },
+        "createdAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["id", "uid", "subjectId", "subjectTitle", "chapterId", "durationMinutes", "mode", "completedAt", "dateKey", "xpEarned", "createdAt"]
+    },
+    "Mission": {
+      "title": "Mission",
+      "description": "Daily or custom academic mission with duplicate XP guard.",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string", "minLength": 1, "maxLength": 128, "pattern": "^[a-zA-Z0-9_\\-]+$" },
+        "uid": { "type": "string", "minLength": 1, "maxLength": 128, "pattern": "^[a-zA-Z0-9_\\-]+$" },
+        "title": { "type": "string", "minLength": 1, "maxLength": 120 },
+        "description": { "type": "string", "maxLength": 300 },
+        "type": { "type": "string", "enum": ["daily", "custom"] },
+        "xpReward": { "type": "number" },
+        "completed": { "type": "boolean" },
+        "xpAwarded": { "type": "boolean" },
+        "claimedDate": { "type": "string", "maxLength": 16 },
+        "createdAt": { "type": "string", "format": "date-time" },
+        "updatedAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["id", "uid", "title", "description", "type", "xpReward", "completed", "xpAwarded", "claimedDate", "createdAt", "updatedAt"]
+    },
+    "BacklogItem": {
+      "title": "BacklogItem",
+      "description": "Unfinished chapter or study debt item broken into micro-tasks with deadline and priority.",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string", "minLength": 1, "maxLength": 128, "pattern": "^[a-zA-Z0-9_\\-]+$" },
+        "uid": { "type": "string", "minLength": 1, "maxLength": 128, "pattern": "^[a-zA-Z0-9_\\-]+$" },
+        "title": { "type": "string", "minLength": 1, "maxLength": 140 },
+        "subjectTitle": { "type": "string", "minLength": 1, "maxLength": 100 },
+        "chapterId": { "type": "string", "maxLength": 128 },
+        "deadline": { "type": "string", "minLength": 8, "maxLength": 16 },
+        "priority": { "type": "string", "enum": ["critical", "high", "moderate"] },
+        "estimatedMinutes": { "type": "number" },
+        "completed": { "type": "boolean" },
+        "subtasks": { "type": "array" },
+        "createdAt": { "type": "string", "format": "date-time" },
+        "updatedAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["id", "uid", "title", "subjectTitle", "chapterId", "deadline", "priority", "estimatedMinutes", "completed", "subtasks", "createdAt", "updatedAt"]
+    },
+    "Quiz": {
+      "title": "Quiz",
+      "description": "Boss Battle chapter quiz deck metadata.",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string", "minLength": 1, "maxLength": 128, "pattern": "^[a-zA-Z0-9_\\-]+$" },
+        "uid": { "type": "string", "minLength": 1, "maxLength": 128, "pattern": "^[a-zA-Z0-9_\\-]+$" },
+        "subjectTitle": { "type": "string", "minLength": 1, "maxLength": 100 },
+        "chapterTitle": { "type": "string", "minLength": 1, "maxLength": 140 },
+        "topicTag": { "type": "string", "minLength": 1, "maxLength": 60 },
+        "timeLimitSeconds": { "type": "number" },
+        "questionCount": { "type": "number" },
+        "createdAt": { "type": "string", "format": "date-time" },
+        "updatedAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["id", "uid", "subjectTitle", "chapterTitle", "topicTag", "timeLimitSeconds", "questionCount", "createdAt", "updatedAt"]
+    },
+    "QuizQuestion": {
+      "title": "QuizQuestion",
+      "description": "Multiple-choice question belonging to a Quiz.",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string", "minLength": 1, "maxLength": 128, "pattern": "^[a-zA-Z0-9_\\-]+$" },
+        "uid": { "type": "string", "minLength": 1, "maxLength": 128, "pattern": "^[a-zA-Z0-9_\\-]+$" },
+        "quizId": { "type": "string", "minLength": 1, "maxLength": 128, "pattern": "^[a-zA-Z0-9_\\-]+$" },
+        "prompt": { "type": "string", "minLength": 1, "maxLength": 600 },
+        "options": { "type": "array" },
+        "correctIndex": { "type": "number" },
+        "explanation": { "type": "string", "maxLength": 1000 },
+        "topicTag": { "type": "string", "minLength": 1, "maxLength": 60 },
+        "order": { "type": "number" },
+        "createdAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["id", "uid", "quizId", "prompt", "options", "correctIndex", "explanation", "topicTag", "order", "createdAt"]
+    },
+    "QuizAttempt": {
+      "title": "QuizAttempt",
+      "description": "Completed Boss Battle quiz attempt with weak topic tracking.",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string", "minLength": 1, "maxLength": 128, "pattern": "^[a-zA-Z0-9_\\-]+$" },
+        "uid": { "type": "string", "minLength": 1, "maxLength": 128, "pattern": "^[a-zA-Z0-9_\\-]+$" },
+        "quizId": { "type": "string", "minLength": 1, "maxLength": 128, "pattern": "^[a-zA-Z0-9_\\-]+$" },
+        "quizTitle": { "type": "string", "minLength": 1, "maxLength": 140 },
+        "subjectTitle": { "type": "string", "minLength": 1, "maxLength": 100 },
+        "topicTag": { "type": "string", "minLength": 1, "maxLength": 60 },
+        "score": { "type": "number" },
+        "correctCount": { "type": "number" },
+        "totalQuestions": { "type": "number" },
+        "durationSeconds": { "type": "number" },
+        "xpEarned": { "type": "number" },
+        "dateKey": { "type": "string", "minLength": 8, "maxLength": 16 },
+        "weakTopics": { "type": "array" },
+        "createdAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["id", "uid", "quizId", "quizTitle", "subjectTitle", "topicTag", "score", "correctCount", "totalQuestions", "durationSeconds", "xpEarned", "dateKey", "weakTopics", "createdAt"]
+    },
+    "Exam": {
+      "title": "Exam",
+      "description": "Upcoming examination countdown and syllabus tracker.",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string", "minLength": 1, "maxLength": 128, "pattern": "^[a-zA-Z0-9_\\-]+$" },
+        "uid": { "type": "string", "minLength": 1, "maxLength": 128, "pattern": "^[a-zA-Z0-9_\\-]+$" },
+        "title": { "type": "string", "minLength": 1, "maxLength": 120 },
+        "subjectId": { "type": "string", "maxLength": 128 },
+        "subjectTitle": { "type": "string", "minLength": 1, "maxLength": 100 },
+        "examDate": { "type": "string", "minLength": 8, "maxLength": 16 },
+        "location": { "type": "string", "maxLength": 120 },
+        "notes": { "type": "string", "maxLength": 1000 },
+        "totalSyllabusUnits": { "type": "number" },
+        "completedSyllabusUnits": { "type": "number" },
+        "dailyTargetMinutes": { "type": "number" },
+        "createdAt": { "type": "string", "format": "date-time" },
+        "updatedAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["id", "uid", "title", "subjectId", "subjectTitle", "examDate", "location", "notes", "totalSyllabusUnits", "completedSyllabusUnits", "dailyTargetMinutes", "createdAt", "updatedAt"]
+    }
+  },
+  "firestore": {
+    "/users/{userId}": {
+      "schema": { "$ref": "#/entities/UserProfile" },
+      "description": "Student profile, preferences, XP, and study streaks."
+    },
+    "/users/{userId}/private/{docId}": {
+      "schema": { "$ref": "#/entities/UserPrivateAccount" },
+      "description": "PII-isolated private account email and subscription status."
+    },
+    "/users/{userId}/subjects/{subjectId}": {
+      "schema": { "$ref": "#/entities/Subject" },
+      "description": "Academic subjects managed in the Personal Library."
+    },
+    "/users/{userId}/chapters/{chapterId}": {
+      "schema": { "$ref": "#/entities/Chapter" },
+      "description": "Chapters, notes, formulas, and difficulty flags."
+    },
+    "/users/{userId}/focusSessions/{sessionId}": {
+      "schema": { "$ref": "#/entities/FocusSession" },
+      "description": "Completed focus and break sessions."
+    },
+    "/users/{userId}/missions/{missionId}": {
+      "schema": { "$ref": "#/entities/Mission" },
+      "description": "Daily and custom academic missions."
+    },
+    "/users/{userId}/backlogItems/{itemId}": {
+      "schema": { "$ref": "#/entities/BacklogItem" },
+      "description": "Backlog rescue items with micro-tasks and deadlines."
+    },
+    "/users/{userId}/quizzes/{quizId}": {
+      "schema": { "$ref": "#/entities/Quiz" },
+      "description": "Chapter quiz decks for Boss Battle."
+    },
+    "/users/{userId}/quizzes/{quizId}/questions/{questionId}": {
+      "schema": { "$ref": "#/entities/QuizQuestion" },
+      "description": "Questions belonging to a quiz deck."
+    },
+    "/users/{userId}/quizAttempts/{attemptId}": {
+      "schema": { "$ref": "#/entities/QuizAttempt" },
+      "description": "Historical quiz scores and weak-topic summaries."
+    },
+    "/users/{userId}/exams/{examId}": {
+      "schema": { "$ref": "#/entities/Exam" },
+      "description": "Upcoming exam dates and syllabus targets."
+    }
+  }
+}

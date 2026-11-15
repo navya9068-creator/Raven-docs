@@ -1,0 +1,8 @@
+{
+  "name": "DARK ACADEMIA",
+  "description": "Discipline is the architecture of knowledge. A scholarly study sanctum, library, focus studio, and examination prep application.",
+  "requestFramePermissions": [],
+  "majorCapabilities": [
+    "MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"
+  ]
+}

@@ -1,0 +1,523 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    // Global Safety Net (Default Deny)
+    match /{document=**} {
+      allow read, write: if false;
+    }
+
+    // Global Primitives
+    function isValidId(id) {
+      return id is string && id.size() >= 1 && id.size() <= 128 && id.matches('^[a-zA-Z0-9_\\-]+$');
+    }
+
+    function incoming() {
+      return request.resource.data;
+    }
+
+    function existing() {
+      return resource.data;
+    }
+
+    function isSignedIn() {
+      return request.auth != null;
+    }
+
+    function isVerifiedOwner(userId) {
+      return isSignedIn()
+        && request.auth.token.email_verified == true
+        && request.auth.uid == userId;
+    }
+
+    function userDocExists(userId) {
+      return existsAfter(/databases/$(database)/documents/users/$(userId));
+    }
+
+    // Entity Validation Blueprints
+    function isValidUserProfile(data) {
+      return data.keys().hasAll([
+          'uid', 'displayName', 'academicLevel', 'crestId', 'dailyGoalMinutes',
+          'xp', 'totalStudyMinutes', 'streakDays', 'lastStudyDate', 'activeStudyDays',
+          'adhdMode', 'ambientSound', 'themeVariant', 'notificationsEnabled',
+          'plan', 'unlockedBadges', 'createdAt', 'updatedAt'
+        ])
+        && data.keys().hasOnly([
+          'uid', 'displayName', 'academicLevel', 'crestId', 'dailyGoalMinutes',
+          'xp', 'totalStudyMinutes', 'streakDays', 'lastStudyDate', 'activeStudyDays',
+          'adhdMode', 'ambientSound', 'themeVariant', 'notificationsEnabled',
+          'plan', 'unlockedBadges', 'createdAt', 'updatedAt'
+        ])
+        && isValidId(data.uid)
+        && data.uid == request.auth.uid
+        && data.displayName is string && data.displayName.size() >= 1 && data.displayName.size() <= 60
+        && data.academicLevel is string && data.academicLevel in ['high_school', 'undergraduate', 'postgraduate', 'independent']
+        && data.crestId is string && data.crestId in ['owl', 'astrolabe', 'folio', 'laurel']
+        && data.dailyGoalMinutes is number && data.dailyGoalMinutes >= 10 && data.dailyGoalMinutes <= 720
+        && data.xp is number && data.xp >= 0 && data.xp <= 10000000
+        && data.totalStudyMinutes is number && data.totalStudyMinutes >= 0 && data.totalStudyMinutes <= 10000000
+        && data.streakDays is number && data.streakDays >= 0 && data.streakDays <= 36500
+        && data.lastStudyDate is string && data.lastStudyDate.size() <= 20
+        && data.activeStudyDays is number && data.activeStudyDays >= 0 && data.activeStudyDays <= 36500
+        && data.adhdMode is bool
+        && data.ambientSound is string && data.ambientSound in ['none', 'rain', 'hearth', 'archive', 'binaural']
+        && data.themeVariant is string && data.themeVariant in ['midnight', 'walnut', 'slate']
+        && data.notificationsEnabled is bool
+        && data.plan is string && data.plan in ['free', 'premium']
+        && data.unlockedBadges is list && data.unlockedBadges.size() <= 30
+        && (data.unlockedBadges.size() == 0 || (data.unlockedBadges[0] is string && data.unlockedBadges[0].size() <= 64))
+        && data.createdAt is timestamp
+        && data.updatedAt is timestamp;
+    }
+
+    function isValidPrivateAccount(data) {
+      return data.keys().hasAll(['uid', 'email', 'subscriptionStatus', 'subscriptionPeriod', 'createdAt', 'updatedAt'])
+        && data.keys().hasOnly(['uid', 'email', 'subscriptionStatus', 'subscriptionPeriod', 'createdAt', 'updatedAt'])
+        && isValidId(data.uid)
+        && data.uid == request.auth.uid
+        && data.email is string && data.email.size() <= 160
+        && data.subscriptionStatus is string && data.subscriptionStatus in ['none', 'trialing', 'active', 'canceled']
+        && data.subscriptionPeriod is string && data.subscriptionPeriod in ['none', 'monthly', 'annual']
+        && data.createdAt is timestamp
+        && data.updatedAt is timestamp;
+    }
+
+    function isValidSubject(data) {
+      return data.keys().hasAll(['id', 'uid', 'title', 'code', 'color', 'targetHours', 'createdAt', 'updatedAt'])
+        && data.keys().hasOnly(['id', 'uid', 'title', 'code', 'color', 'targetHours', 'createdAt', 'updatedAt'])
+        && isValidId(data.id)
+        && isValidId(data.uid)
+        && data.uid == request.auth.uid
+        && data.title is string && data.title.size() >= 1 && data.title.size() <= 100
+        && data.code is string && data.code.size() <= 20
+        && data.color is string && data.color.size() >= 1 && data.color.size() <= 24
+        && data.targetHours is number && data.targetHours >= 1 && data.targetHours <= 1000
+        && data.createdAt is timestamp
+        && data.updatedAt is timestamp;
+    }
+
+    function isValidChapter(data) {
+      return data.keys().hasAll(['id', 'uid', 'subjectId', 'title', 'completed', 'isDifficult', 'difficulty', 'notes', 'formulas', 'order', 'createdAt', 'updatedAt'])
+        && data.keys().hasOnly(['id', 'uid', 'subjectId', 'title', 'completed', 'isDifficult', 'difficulty', 'notes', 'formulas', 'order', 'createdAt', 'updatedAt'])
+        && isValidId(data.id)
+        && isValidId(data.uid)
+        && isValidId(data.subjectId)
+        && data.uid == request.auth.uid
+        && data.title is string && data.title.size() >= 1 && data.title.size() <= 140
+        && data.completed is bool
+        && data.isDifficult is bool
+        && data.difficulty is string && data.difficulty in ['foundational', 'standard', 'challenging']
+        && data.notes is string && data.notes.size() <= 15000
+        && data.formulas is string && data.formulas.size() <= 8000
+        && data.order is number && data.order >= 0 && data.order <= 10000
+        && data.createdAt is timestamp
+        && data.updatedAt is timestamp;
+    }
+
+    function isValidFocusSession(data) {
+      return data.keys().hasAll(['id', 'uid', 'subjectId', 'subjectTitle', 'chapterId', 'durationMinutes', 'mode', 'completedAt', 'dateKey', 'xpEarned', 'createdAt'])
+        && data.keys().hasOnly(['id', 'uid', 'subjectId', 'subjectTitle', 'chapterId', 'durationMinutes', 'mode', 'completedAt', 'dateKey', 'xpEarned', 'createdAt'])
+        && isValidId(data.id)
+        && isValidId(data.uid)
+        && data.uid == request.auth.uid
+        && data.subjectId is string && data.subjectId.size() <= 128
+        && data.subjectTitle is string && data.subjectTitle.size() <= 100
+        && data.chapterId is string && data.chapterId.size() <= 128
+        && data.durationMinutes is number && data.durationMinutes >= 1 && data.durationMinutes <= 300
+        && data.mode is string && data.mode in ['pomodoro', 'custom', 'adhd_sprint', 'short_break', 'long_break']
+        && data.completedAt is string && data.completedAt.size() >= 1 && data.completedAt.size() <= 40
+        && data.dateKey is string && data.dateKey.size() >= 8 && data.dateKey.size() <= 16
+        && data.xpEarned is number && data.xpEarned >= 0 && data.xpEarned <= 500
+        && data.createdAt is timestamp;
+    }
+
+    function isValidMission(data) {
+      return data.keys().hasAll(['id', 'uid', 'title', 'description', 'type', 'xpReward', 'completed', 'xpAwarded', 'claimedDate', 'createdAt', 'updatedAt'])
+        && data.keys().hasOnly(['id', 'uid', 'title', 'description', 'type', 'xpReward', 'completed', 'xpAwarded', 'claimedDate', 'createdAt', 'updatedAt'])
+        && isValidId(data.id)
+        && isValidId(data.uid)
+        && data.uid == request.auth.uid
+        && data.title is string && data.title.size() >= 1 && data.title.size() <= 120
+        && data.description is string && data.description.size() <= 300
+        && data.type is string && data.type in ['daily', 'custom']
+        && data.xpReward is number && data.xpReward >= 5 && data.xpReward <= 250
+        && data.completed is bool
+        && data.xpAwarded is bool
+        && data.claimedDate is string && data.claimedDate.size() <= 16
+        && data.createdAt is timestamp
+        && data.updatedAt is timestamp;
+    }
+
+    function isValidBacklogItem(data) {
+      return data.keys().hasAll(['id', 'uid', 'title', 'subjectTitle', 'chapterId', 'deadline', 'priority', 'estimatedMinutes', 'completed', 'subtasks', 'createdAt', 'updatedAt'])
+        && data.keys().hasOnly(['id', 'uid', 'title', 'subjectTitle', 'chapterId', 'deadline', 'priority', 'estimatedMinutes', 'completed', 'subtasks', 'createdAt', 'updatedAt'])
+        && isValidId(data.id)
+        && isValidId(data.uid)
+        && data.uid == request.auth.uid
+        && data.title is string && data.title.size() >= 1 && data.title.size() <= 140
+        && data.subjectTitle is string && data.subjectTitle.size() >= 1 && data.subjectTitle.size() <= 100
+        && data.chapterId is string && data.chapterId.size() <= 128
+        && data.deadline is string && data.deadline.size() >= 8 && data.deadline.size() <= 16
+        && data.priority is string && data.priority in ['critical', 'high', 'moderate']
+        && data.estimatedMinutes is number && data.estimatedMinutes >= 5 && data.estimatedMinutes <= 1200
+        && data.completed is bool
+        && data.subtasks is list && data.subtasks.size() <= 20
+        && (data.subtasks.size() == 0 || (data.subtasks[0] is string && data.subtasks[0].size() <= 240))
+        && data.createdAt is timestamp
+        && data.updatedAt is timestamp;
+    }
+
+    function isValidQuiz(data) {
+      return data.keys().hasAll(['id', 'uid', 'subjectTitle', 'chapterTitle', 'topicTag', 'timeLimitSeconds', 'questionCount', 'createdAt', 'updatedAt'])
+        && data.keys().hasOnly(['id', 'uid', 'subjectTitle', 'chapterTitle', 'topicTag', 'timeLimitSeconds', 'questionCount', 'createdAt', 'updatedAt'])
+        && isValidId(data.id)
+        && isValidId(data.uid)
+        && data.uid == request.auth.uid
+        && data.subjectTitle is string && data.subjectTitle.size() >= 1 && data.subjectTitle.size() <= 100
+        && data.chapterTitle is string && data.chapterTitle.size() >= 1 && data.chapterTitle.size() <= 140
+        && data.topicTag is string && data.topicTag.size() >= 1 && data.topicTag.size() <= 60
+        && data.timeLimitSeconds is number && data.timeLimitSeconds >= 30 && data.timeLimitSeconds <= 3600
+        && data.questionCount is number && data.questionCount >= 1 && data.questionCount <= 30
+        && data.createdAt is timestamp
+        && data.updatedAt is timestamp;
+    }
+
+    function isValidQuizQuestion(data) {
+      return data.keys().hasAll(['id', 'uid', 'quizId', 'prompt', 'options', 'correctIndex', 'explanation', 'topicTag', 'order', 'createdAt'])
+        && data.keys().hasOnly(['id', 'uid', 'quizId', 'prompt', 'options', 'correctIndex', 'explanation', 'topicTag', 'order', 'createdAt'])
+        && isValidId(data.id)
+        && isValidId(data.uid)
+        && isValidId(data.quizId)
+        && data.uid == request.auth.uid
+        && data.prompt is string && data.prompt.size() >= 1 && data.prompt.size() <= 600
+        && data.options is list && data.options.size() == 4
+        && data.options[0] is string && data.options[0].size() >= 1 && data.options[0].size() <= 300
+        && data.correctIndex is number && data.correctIndex >= 0 && data.correctIndex <= 3
+        && data.explanation is string && data.explanation.size() <= 1000
+        && data.topicTag is string && data.topicTag.size() >= 1 && data.topicTag.size() <= 60
+        && data.order is number && data.order >= 0 && data.order <= 50
+        && data.createdAt is timestamp;
+    }
+
+    function isValidQuizAttempt(data) {
+      return data.keys().hasAll(['id', 'uid', 'quizId', 'quizTitle', 'subjectTitle', 'topicTag', 'score', 'correctCount', 'totalQuestions', 'durationSeconds', 'xpEarned', 'dateKey', 'weakTopics', 'createdAt'])
+        && data.keys().hasOnly(['id', 'uid', 'quizId', 'quizTitle', 'subjectTitle', 'topicTag', 'score', 'correctCount', 'totalQuestions', 'durationSeconds', 'xpEarned', 'dateKey', 'weakTopics', 'createdAt'])
+        && isValidId(data.id)
+        && isValidId(data.uid)
+        && isValidId(data.quizId)
+        && data.uid == request.auth.uid
+        && data.quizTitle is string && data.quizTitle.size() >= 1 && data.quizTitle.size() <= 140
+        && data.subjectTitle is string && data.subjectTitle.size() >= 1 && data.subjectTitle.size() <= 100
+        && data.topicTag is string && data.topicTag.size() >= 1 && data.topicTag.size() <= 60
+        && data.score is number && data.score >= 0 && data.score <= 100
+        && data.correctCount is number && data.correctCount >= 0 && data.correctCount <= 100
+        && data.totalQuestions is number && data.totalQuestions >= 1 && data.totalQuestions <= 100
+        && data.durationSeconds is number && data.durationSeconds >= 0 && data.durationSeconds <= 7200
+        && data.xpEarned is number && data.xpEarned >= 0 && data.xpEarned <= 500
+        && data.dateKey is string && data.dateKey.size() >= 8 && data.dateKey.size() <= 16
+        && data.weakTopics is list && data.weakTopics.size() <= 10
+        && (data.weakTopics.size() == 0 || (data.weakTopics[0] is string && data.weakTopics[0].size() <= 64))
+        && data.createdAt is timestamp;
+    }
+
+    function isValidExam(data) {
+      return data.keys().hasAll(['id', 'uid', 'title', 'subjectId', 'subjectTitle', 'examDate', 'location', 'notes', 'totalSyllabusUnits', 'completedSyllabusUnits', 'dailyTargetMinutes', 'createdAt', 'updatedAt'])
+        && data.keys().hasOnly(['id', 'uid', 'title', 'subjectId', 'subjectTitle', 'examDate', 'location', 'notes', 'totalSyllabusUnits', 'completedSyllabusUnits', 'dailyTargetMinutes', 'createdAt', 'updatedAt'])
+        && isValidId(data.id)
+        && isValidId(data.uid)
+        && data.uid == request.auth.uid
+        && data.title is string && data.title.size() >= 1 && data.title.size() <= 120
+        && data.subjectId is string && data.subjectId.size() <= 128
+        && data.subjectTitle is string && data.subjectTitle.size() >= 1 && data.subjectTitle.size() <= 100
+        && data.examDate is string && data.examDate.size() >= 8 && data.examDate.size() <= 16
+        && data.location is string && data.location.size() <= 120
+        && data.notes is string && data.notes.size() <= 1000
+        && data.totalSyllabusUnits is number && data.totalSyllabusUnits >= 1 && data.totalSyllabusUnits <= 100
+        && data.completedSyllabusUnits is number && data.completedSyllabusUnits >= 0 && data.completedSyllabusUnits <= data.totalSyllabusUnits
+        && data.dailyTargetMinutes is number && data.dailyTargetMinutes >= 10 && data.dailyTargetMinutes <= 480
+        && data.createdAt is timestamp
+        && data.updatedAt is timestamp;
+    }
+
+    // Collection Rules
+    match /users/{userId} {
+      allow get: if isVerifiedOwner(userId) && isValidId(userId);
+      allow create: if isVerifiedOwner(userId)
+        && isValidId(userId)
+        && isValidUserProfile(incoming())
+        && incoming().uid == userId
+        && incoming().plan == 'free'
+        && incoming().themeVariant == 'midnight'
+        && incoming().xp == 0
+        && incoming().totalStudyMinutes == 0
+        && incoming().createdAt == request.time
+        && incoming().updatedAt == request.time;
+
+      allow update: if isVerifiedOwner(userId)
+        && isValidId(userId)
+        && isValidUserProfile(incoming())
+        && incoming().uid == existing().uid
+        && incoming().createdAt == existing().createdAt
+        && incoming().updatedAt == request.time
+        && incoming().plan == existing().plan
+        && (incoming().themeVariant == 'midnight' || existing().plan == 'premium')
+        && (
+          // Action: Update Preferences & Profile
+          incoming().diff(existing()).affectedKeys().hasOnly([
+            'displayName', 'academicLevel', 'crestId', 'dailyGoalMinutes',
+            'adhdMode', 'ambientSound', 'themeVariant', 'notificationsEnabled', 'updatedAt'
+          ]) ||
+          // Action: Record Study / Mission / Quiz Progress
+          (
+            incoming().diff(existing()).affectedKeys().hasOnly([
+              'xp', 'totalStudyMinutes', 'streakDays', 'lastStudyDate',
+              'activeStudyDays', 'unlockedBadges', 'updatedAt'
+            ])
+            && incoming().xp >= existing().xp
+            && incoming().xp <= existing().xp + 500
+            && incoming().totalStudyMinutes >= existing().totalStudyMinutes
+            && incoming().totalStudyMinutes <= existing().totalStudyMinutes + 300
+          )
+        );
+
+      allow delete: if isVerifiedOwner(userId) && isValidId(userId);
+
+      // Isolated PII & Subscription Status
+      match /private/{docId} {
+        allow get: if isVerifiedOwner(userId) && isValidId(userId) && isValidId(docId);
+        allow create: if isVerifiedOwner(userId)
+          && isValidId(userId)
+          && isValidId(docId)
+          && docId == 'account'
+          && isValidPrivateAccount(incoming())
+          && incoming().subscriptionStatus == 'none'
+          && incoming().subscriptionPeriod == 'none'
+          && incoming().createdAt == request.time
+          && incoming().updatedAt == request.time
+          && userDocExists(userId);
+        allow update: if isVerifiedOwner(userId)
+          && isValidId(userId)
+          && isValidId(docId)
+          && isValidPrivateAccount(incoming())
+          && incoming().uid == existing().uid
+          && incoming().createdAt == existing().createdAt
+          && incoming().updatedAt == request.time
+          && incoming().subscriptionStatus == existing().subscriptionStatus
+          && incoming().subscriptionPeriod == existing().subscriptionPeriod
+          && incoming().diff(existing()).affectedKeys().hasOnly(['email', 'updatedAt']);
+        allow delete: if isVerifiedOwner(userId) && isValidId(userId) && isValidId(docId);
+      }
+
+      // Personal Library: Subjects
+      match /subjects/{subjectId} {
+        allow get: if isVerifiedOwner(userId) && isValidId(userId) && isValidId(subjectId);
+        allow list: if isVerifiedOwner(userId) && resource.data.uid == request.auth.uid;
+        allow create: if isVerifiedOwner(userId)
+          && isValidId(userId)
+          && isValidId(subjectId)
+          && isValidSubject(incoming())
+          && incoming().id == subjectId
+          && incoming().createdAt == request.time
+          && incoming().updatedAt == request.time
+          && userDocExists(userId);
+        allow update: if isVerifiedOwner(userId)
+          && isValidId(userId)
+          && isValidId(subjectId)
+          && isValidSubject(incoming())
+          && incoming().id == existing().id
+          && incoming().uid == existing().uid
+          && incoming().createdAt == existing().createdAt
+          && incoming().updatedAt == request.time
+          && incoming().diff(existing()).affectedKeys().hasOnly(['title', 'code', 'color', 'targetHours', 'updatedAt']);
+        allow delete: if isVerifiedOwner(userId) && isValidId(userId) && isValidId(subjectId);
+      }
+
+      // Personal Library: Chapters
+      match /chapters/{chapterId} {
+        allow get: if isVerifiedOwner(userId) && isValidId(userId) && isValidId(chapterId);
+        allow list: if isVerifiedOwner(userId) && resource.data.uid == request.auth.uid;
+        allow create: if isVerifiedOwner(userId)
+          && isValidId(userId)
+          && isValidId(chapterId)
+          && isValidChapter(incoming())
+          && incoming().id == chapterId
+          && incoming().createdAt == request.time
+          && incoming().updatedAt == request.time
+          && userDocExists(userId)
+          && existsAfter(/databases/$(database)/documents/users/$(userId)/subjects/$(incoming().subjectId));
+        allow update: if isVerifiedOwner(userId)
+          && isValidId(userId)
+          && isValidId(chapterId)
+          && isValidChapter(incoming())
+          && incoming().id == existing().id
+          && incoming().uid == existing().uid
+          && incoming().subjectId == existing().subjectId
+          && incoming().createdAt == existing().createdAt
+          && incoming().updatedAt == request.time
+          && (
+            incoming().diff(existing()).affectedKeys().hasOnly(['completed', 'updatedAt']) ||
+            incoming().diff(existing()).affectedKeys().hasOnly(['title', 'isDifficult', 'difficulty', 'notes', 'formulas', 'order', 'updatedAt'])
+          );
+        allow delete: if isVerifiedOwner(userId) && isValidId(userId) && isValidId(chapterId);
+      }
+
+      // Focus Room: Sessions
+      match /focusSessions/{sessionId} {
+        allow get: if isVerifiedOwner(userId) && isValidId(userId) && isValidId(sessionId);
+        allow list: if isVerifiedOwner(userId) && resource.data.uid == request.auth.uid;
+        allow create: if isVerifiedOwner(userId)
+          && isValidId(userId)
+          && isValidId(sessionId)
+          && isValidFocusSession(incoming())
+          && incoming().id == sessionId
+          && incoming().createdAt == request.time
+          && userDocExists(userId);
+        allow delete: if isVerifiedOwner(userId) && isValidId(userId) && isValidId(sessionId);
+      }
+
+      // Mission Board: Missions (with Duplicate XP Lock)
+      match /missions/{missionId} {
+        allow get: if isVerifiedOwner(userId) && isValidId(userId) && isValidId(missionId);
+        allow list: if isVerifiedOwner(userId) && resource.data.uid == request.auth.uid;
+        allow create: if isVerifiedOwner(userId)
+          && isValidId(userId)
+          && isValidId(missionId)
+          && isValidMission(incoming())
+          && incoming().id == missionId
+          && incoming().xpAwarded == false
+          && incoming().createdAt == request.time
+          && incoming().updatedAt == request.time
+          && userDocExists(userId);
+        allow update: if isVerifiedOwner(userId)
+          && isValidId(userId)
+          && isValidId(missionId)
+          && isValidMission(incoming())
+          && incoming().id == existing().id
+          && incoming().uid == existing().uid
+          && incoming().type == existing().type
+          && incoming().createdAt == existing().createdAt
+          && incoming().updatedAt == request.time
+          && (
+            // Action: Complete or claim XP (never allow resetting xpAwarded back to false)
+            (
+              incoming().diff(existing()).affectedKeys().hasOnly(['completed', 'xpAwarded', 'claimedDate', 'updatedAt'])
+              && (!existing().xpAwarded || incoming().xpAwarded == true)
+            ) ||
+            // Action: Edit custom mission before completion
+            (
+              existing().type == 'custom'
+              && !existing().xpAwarded
+              && incoming().diff(existing()).affectedKeys().hasOnly(['title', 'description', 'xpReward', 'updatedAt'])
+            )
+          );
+        allow delete: if isVerifiedOwner(userId) && isValidId(userId) && isValidId(missionId);
+      }
+
+      // Backlog Rescue
+      match /backlogItems/{itemId} {
+        allow get: if isVerifiedOwner(userId) && isValidId(userId) && isValidId(itemId);
+        allow list: if isVerifiedOwner(userId) && resource.data.uid == request.auth.uid;
+        allow create: if isVerifiedOwner(userId)
+          && isValidId(userId)
+          && isValidId(itemId)
+          && isValidBacklogItem(incoming())
+          && incoming().id == itemId
+          && incoming().createdAt == request.time
+          && incoming().updatedAt == request.time
+          && userDocExists(userId);
+        allow update: if isVerifiedOwner(userId)
+          && isValidId(userId)
+          && isValidId(itemId)
+          && isValidBacklogItem(incoming())
+          && incoming().id == existing().id
+          && incoming().uid == existing().uid
+          && incoming().createdAt == existing().createdAt
+          && incoming().updatedAt == request.time
+          && (
+            incoming().diff(existing()).affectedKeys().hasOnly(['completed', 'subtasks', 'updatedAt']) ||
+            incoming().diff(existing()).affectedKeys().hasOnly(['title', 'subjectTitle', 'deadline', 'priority', 'estimatedMinutes', 'subtasks', 'updatedAt'])
+          );
+        allow delete: if isVerifiedOwner(userId) && isValidId(userId) && isValidId(itemId);
+      }
+
+      // Boss Battle: Quizzes & Questions
+      match /quizzes/{quizId} {
+        allow get: if isVerifiedOwner(userId) && isValidId(userId) && isValidId(quizId);
+        allow list: if isVerifiedOwner(userId) && resource.data.uid == request.auth.uid;
+        allow create: if isVerifiedOwner(userId)
+          && isValidId(userId)
+          && isValidId(quizId)
+          && isValidQuiz(incoming())
+          && incoming().id == quizId
+          && incoming().createdAt == request.time
+          && incoming().updatedAt == request.time
+          && userDocExists(userId);
+        allow update: if isVerifiedOwner(userId)
+          && isValidId(userId)
+          && isValidId(quizId)
+          && isValidQuiz(incoming())
+          && incoming().id == existing().id
+          && incoming().uid == existing().uid
+          && incoming().createdAt == existing().createdAt
+          && incoming().updatedAt == request.time
+          && incoming().diff(existing()).affectedKeys().hasOnly(['subjectTitle', 'chapterTitle', 'topicTag', 'timeLimitSeconds', 'questionCount', 'updatedAt']);
+        allow delete: if isVerifiedOwner(userId) && isValidId(userId) && isValidId(quizId);
+
+        match /questions/{questionId} {
+          allow get: if isVerifiedOwner(userId) && isValidId(userId) && isValidId(quizId) && isValidId(questionId);
+          allow list: if isVerifiedOwner(userId) && resource.data.uid == request.auth.uid;
+          allow create: if isVerifiedOwner(userId)
+            && isValidId(userId)
+            && isValidId(quizId)
+            && isValidId(questionId)
+            && isValidQuizQuestion(incoming())
+            && incoming().id == questionId
+            && incoming().quizId == quizId
+            && incoming().createdAt == request.time
+            && existsAfter(/databases/$(database)/documents/users/$(userId)/quizzes/$(quizId));
+          allow delete: if isVerifiedOwner(userId) && isValidId(userId) && isValidId(quizId) && isValidId(questionId);
+        }
+      }
+
+      // Boss Battle: Quiz Attempts
+      match /quizAttempts/{attemptId} {
+        allow get: if isVerifiedOwner(userId) && isValidId(userId) && isValidId(attemptId);
+        allow list: if isVerifiedOwner(userId) && resource.data.uid == request.auth.uid;
+        allow create: if isVerifiedOwner(userId)
+          && isValidId(userId)
+          && isValidId(attemptId)
+          && isValidQuizAttempt(incoming())
+          && incoming().id == attemptId
+          && incoming().createdAt == request.time
+          && userDocExists(userId);
+        allow delete: if isVerifiedOwner(userId) && isValidId(userId) && isValidId(attemptId);
+      }
+
+      // Exam Countdown
+      match /exams/{examId} {
+        allow get: if isVerifiedOwner(userId) && isValidId(userId) && isValidId(examId);
+        allow list: if isVerifiedOwner(userId) && resource.data.uid == request.auth.uid;
+        allow create: if isVerifiedOwner(userId)
+          && isValidId(userId)
+          && isValidId(examId)
+          && isValidExam(incoming())
+          && incoming().id == examId
+          && incoming().createdAt == request.time
+          && incoming().updatedAt == request.time
+          && userDocExists(userId);
+        allow update: if isVerifiedOwner(userId)
+          && isValidId(userId)
+          && isValidId(examId)
+          && isValidExam(incoming())
+          && incoming().id == existing().id
+          && incoming().uid == existing().uid
+          && incoming().createdAt == existing().createdAt
+          && incoming().updatedAt == request.time
+          && (
+            incoming().diff(existing()).affectedKeys().hasOnly(['completedSyllabusUnits', 'updatedAt']) ||
+            incoming().diff(existing()).affectedKeys().hasOnly(['title', 'subjectId', 'subjectTitle', 'examDate', 'location', 'notes', 'totalSyllabusUnits', 'completedSyllabusUnits', 'dailyTargetMinutes', 'updatedAt'])
+          );
+        allow delete: if isVerifiedOwner(userId) && isValidId(userId) && isValidId(examId);
+      }
+    }
+  }
+}
